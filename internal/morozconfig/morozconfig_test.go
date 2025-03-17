@@ -1,7 +1,7 @@
 package morozconfig_test
 
 import (
-	"sort"
+	"slices"
 	"strings"
 	"testing"
 
@@ -13,15 +13,6 @@ import (
 	apipb "buf.build/gen/go/northpolesec/workshop-api/protocolbuffers/go/workshop/v1"
 )
 
-// ByIdentifier implements sort.Interface for sorting rules by their identifier.
-type ByIdentifier []*apipb.Rule
-
-func (a ByIdentifier) Len() int      { return len(a) }
-func (a ByIdentifier) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
-func (a ByIdentifier) Less(i, j int) bool {
-	return strings.Compare(a[i].GetIdentifier(), a[j].GetIdentifier()) < 0
-}
-
 func TestParseRulesFromFile(t *testing.T) {
 	// Test with a valid file
 	rules, err := morozconfig.ParseRulesFromFile("testdata/global.toml")
@@ -29,7 +20,9 @@ func TestParseRulesFromFile(t *testing.T) {
 
 	// Sort the rules by identifier since the TOML parser uses a map under the
 	// hood
-	sort.Sort(ByIdentifier(rules))
+	slices.SortFunc(rules, func(a, b *apipb.Rule) int {
+		return strings.Compare(a.GetIdentifier(), b.GetIdentifier())
+	})
 
 	must.Eq(t, 2, len(rules))
 
