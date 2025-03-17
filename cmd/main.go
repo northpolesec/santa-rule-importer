@@ -1,4 +1,4 @@
-// Utility to add rules from moroz to a Workshop instance.
+// Utility to add rules from Moroz or Rudolph to a Workshop instance.
 // Copyright (c) 2025 North Pole Security, Inc.
 package main
 
@@ -23,7 +23,6 @@ import (
 )
 
 func usage() {
-
 	fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS] <path to config.toml|path to config.csv> <server>\n", os.Args[0])
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintf(os.Stderr, "santa-rule-importer - tool to import rules from Moroz and Rudolph to Workshop\n")
