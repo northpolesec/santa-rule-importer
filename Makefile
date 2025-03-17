@@ -4,7 +4,7 @@ MAIN_FILE = ./cmd/main.go
 
 # Default target
 .PHONY: all
-all: build
+all: deps build
 
 .PHONY: deps
 .ONESHELL: deps
@@ -44,4 +44,4 @@ help:
 	@echo "  fmt             - Format code"
 	@echo "  help            - Show this help message"
 
-.DEFAULT_GOAL := help
+.DEFAULT_GOAL := all

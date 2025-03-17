@@ -5,10 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/northpolesec/santa-rule-importer/internal/morozconfig"
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
-
-	"github.com/northpolesec/santa-rule-importer/internal/morozconfig"
 
 	syncpb "buf.build/gen/go/northpolesec/protos/protocolbuffers/go/sync"
 	apipb "buf.build/gen/go/northpolesec/workshop-api/protocolbuffers/go/workshop/v1"
