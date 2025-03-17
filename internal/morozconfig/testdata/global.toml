@@ -1,0 +1,23 @@
+client_mode = "MONITOR"
+# blocked_path_regex = "^(?:/Users)/.*"
+# allowed_path_regex = "^(?:/Users)/.*"
+batch_size = 100
+enable_all_event_upload = true
+enable_bundles = false
+enable_transitive_rules = true
+clean_sync = true
+full_sync_interval = 600
+
+[[rules]]
+rule_type = "SIGNINGID"
+policy = "BLOCKLIST"
+identifier = "platform:com.apple.osascript"
+custom_msg = "Where does this go?"
+custom_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+
+[[rules]]
+rule_type = "SIGNINGID"
+policy = "BLOCKLIST"
+identifier = "platform:com.apple.osacompile"
+custom_msg = "osacompile is banned by policy"
+custom_url = "https://gist.github.com/pmarkowsky/bfa5840261351f506444b2d8541e9654"
