@@ -3,8 +3,9 @@ package morozconfig
 import (
 	"os"
 
-	"github.com/northpolesec/santa-rule-importer/internal/rulehelpers"
 	"github.com/pelletier/go-toml/v2"
+
+	"github.com/northpolesec/santa-rule-importer/internal/rulehelpers"
 
 	apipb "buf.build/gen/go/northpolesec/workshop-api/protocolbuffers/go/workshop/v1"
 )
