@@ -38,6 +38,8 @@ func usage() {
 
 func main() {
 	useInsecure := flag.Bool("insecure", false, "Use insecure connection")
+	useCustomMsgAsComment := flag.Bool("use-custom-msg-as-comment", false, "Use custom message as comment (moroz only)")
+
 	flag.Usage = usage
 	flag.Parse()
 
@@ -67,7 +69,7 @@ func main() {
 		rules, ruleSrcErr = rudolph.ParseRulesFromFile(filename)
 	} else if strings.HasSuffix(filename, ".toml") {
 		// Read the file content
-		rules, ruleSrcErr = morozconfig.ParseRulesFromFile(filename)
+		rules, ruleSrcErr = morozconfig.ParseRulesFromFile(filename, *useCustomMsgAsComment)
 	} else {
 		println("Unsupported file format. Please provide a .toml or .csv file.")
 		os.Exit(1)

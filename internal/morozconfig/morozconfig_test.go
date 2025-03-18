@@ -15,7 +15,7 @@ import (
 
 func TestParseRulesFromFile(t *testing.T) {
 	// Test with a valid file
-	rules, err := morozconfig.ParseRulesFromFile("testdata/global.toml")
+	rules, err := morozconfig.ParseRulesFromFile("testdata/global.toml", false)
 	must.NoError(t, err)
 
 	// Sort the rules by identifier since the TOML parser uses a map under the
@@ -38,4 +38,26 @@ func TestParseRulesFromFile(t *testing.T) {
 	test.Eq(t, "platform:com.apple.osascript", rules[1].GetIdentifier())
 	test.Eq(t, "https://www.youtube.com/watch?v=dQw4w9WgXcQ", rules[1].GetCustomUrl())
 	test.Eq(t, "Where does this go?", rules[1].GetCustomMsg())
+}
+
+func TestUsingCustomMsgAsComment(t *testing.T) {
+	// Test with a valid file
+	rules, err := morozconfig.ParseRulesFromFile("testdata/global.toml", true)
+	must.NoError(t, err)
+
+	// Sort the rules by identifier since the TOML parser uses a map under the
+	// hood
+	slices.SortFunc(rules, func(a, b *apipb.Rule) int {
+		return strings.Compare(a.GetIdentifier(), b.GetIdentifier())
+	})
+
+	must.Eq(t, 2, len(rules))
+	test.Eq(t, "osacompile is banned by policy", rules[0].GetComment())
+
+	// Ensure the comment and the custom_msg are the same
+	test.Eq(t, rules[0].GetCustomMsg(), rules[0].GetComment())
+
+	test.Eq(t, "Where does this go?", rules[1].GetComment())
+	// Ensure the comment and the custom_msg are the same
+	test.Eq(t, rules[1].GetCustomMsg(), rules[1].GetComment())
 }

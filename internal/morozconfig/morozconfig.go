@@ -25,7 +25,7 @@ type Config struct {
 
 // ParseRulesFromFile reads a moroz TOML configuration file and returns a slice
 // of rules.
-func ParseRulesFromFile(filePath string) ([]*apipb.Rule, error) {
+func ParseRulesFromFile(filePath string, useCustomMsgAsComment bool) ([]*apipb.Rule, error) {
 	// Read the file content
 	tomlData, err := os.ReadFile(filePath)
 	if err != nil {
@@ -41,12 +41,18 @@ func ParseRulesFromFile(filePath string) ([]*apipb.Rule, error) {
 	rules := []*apipb.Rule{}
 
 	for _, rule := range config.Rules {
+		comment := ""
+
+		if useCustomMsgAsComment {
+			comment = rule.CustomMsg
+		}
 		rules = append(rules, &apipb.Rule{
 			RuleType:   rulehelpers.GetRuleType(rule.RuleType),
 			Policy:     rulehelpers.GetPolicyType(rule.Policy),
 			Identifier: rule.Identifier,
 			CustomMsg:  rule.CustomMsg,
 			CustomUrl:  rule.CustomURL,
+			Comment:    comment,
 		})
 	}
 
