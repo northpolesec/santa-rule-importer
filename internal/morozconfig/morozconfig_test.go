@@ -47,7 +47,11 @@ func TestUsingCustomMsgAsComment(t *testing.T) {
 
 	// Sort the rules by identifier since the TOML parser uses a map under the
 	// hood
-	sort.Sort(ByIdentifier(rules))
+	// Sort the rules by identifier since the TOML parser uses a map under the
+	// hood
+	slices.SortFunc(rules, func(a, b *apipb.Rule) int {
+		return strings.Compare(a.GetIdentifier(), b.GetIdentifier())
+	})
 
 	must.Eq(t, 2, len(rules))
 	test.Eq(t, "osacompile is banned by policy", rules[0].GetComment())
