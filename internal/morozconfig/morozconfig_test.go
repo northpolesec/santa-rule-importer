@@ -47,8 +47,6 @@ func TestUsingCustomMsgAsComment(t *testing.T) {
 
 	// Sort the rules by identifier since the TOML parser uses a map under the
 	// hood
-	// Sort the rules by identifier since the TOML parser uses a map under the
-	// hood
 	slices.SortFunc(rules, func(a, b *apipb.Rule) int {
 		return strings.Compare(a.GetIdentifier(), b.GetIdentifier())
 	})
