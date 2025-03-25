@@ -42,7 +42,7 @@ func ParseRulesFromFile(filePath string) ([]*apipb.Rule, error) {
 			CustomMsg:  rule.CustomMsg,
 			CustomUrl:  rule.CustomURL,
 			Comment:    rule.Comment,
-		})
+		}
 	}
 
 	return rules, nil
