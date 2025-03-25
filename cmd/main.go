@@ -13,6 +13,7 @@ import (
 
 	"github.com/northpolesec/santa-rule-importer/internal/morozconfig"
 	"github.com/northpolesec/santa-rule-importer/internal/rudolph"
+	"github.com/northpolesec/santa-rule-importer/internal/santactl"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -70,6 +71,8 @@ func main() {
 	} else if strings.HasSuffix(filename, ".toml") {
 		// Read the file content
 		rules, ruleSrcErr = morozconfig.ParseRulesFromFile(filename, *useCustomMsgAsComment)
+	} else if strings.HasSuffix(filename, ".json") {
+		rules, ruleSrcErr = santactl.ParseRulesFromFile(filename)
 	} else {
 		println("Unsupported file format. Please provide a .toml or .csv file.")
 		os.Exit(1)
