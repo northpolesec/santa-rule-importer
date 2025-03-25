@@ -33,9 +33,9 @@ func ParseRulesFromFile(filePath string) ([]*apipb.Rule, error) {
 	if err != nil {
 		return nil, err
 	}
-	rules := []*apipb.Rule{}
-	for _, rule := range rulesFile.Rules {
-		rules = append(rules, &apipb.Rule{
+	rules := make([]*apipb.Rule, len(rulesFile.Rules))
+	for i, rule := range rulesFile.Rules {
+		rules[i] = &apipb.Rule{
 			RuleType:   rulehelpers.GetRuleType(rule.RuleType),
 			Policy:     rulehelpers.GetPolicyType(rule.Policy),
 			Identifier: rule.Identifier,
