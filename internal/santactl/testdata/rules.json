@@ -1,0 +1,28 @@
+{
+  "rules" : [
+    {
+      "custom_msg" : "This is allowed",
+      "comment" : "\/Applications\/Google Chrome.app\/Contents\/Frameworks\/Google Chrome Framework.framework\/Versions\/131.0.6778.86\/Helpers\/Google Chrome Helper (Renderer).app\/Contents\/MacOS\/Google Chrome Helper (Renderer)",
+      "rule_type" : "SIGNINGID",
+      "identifier" : "EQHXZ8M8AV:com.google.Chrome.helper.renderer",
+      "custom_url" : "https://support.google.com/chrome/answer/95617",
+      "policy" : "ALLOWLIST"
+    },
+    {
+      "custom_msg" : "",
+      "comment" : "\/Users\/peterm\/Library\/Application Support\/Code\/User\/globalStorage\/llvm-vs-code-extensions.vscode-clangd\/install\/15.0.6\/clangd_15.0.6\/bin\/clangd",
+      "rule_type" : "BINARY",
+      "identifier" : "6c58905785bccb8a0854cca5a646c4ea6b20e522c9b61de842a759919df002e7",
+      "custom_url" : "",
+      "policy" : "ALLOWLIST"
+    },
+    {
+      "custom_msg" : "",
+      "comment" : "",
+      "rule_type" : "SIGNINGID",
+      "identifier" : "platform:com.apple.osascript",
+      "custom_url" : "",
+      "policy" : "BLOCKLIST"
+    }
+  ]
+}
