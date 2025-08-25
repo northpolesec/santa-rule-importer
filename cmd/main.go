@@ -1,4 +1,4 @@
-// Utility to add rules from Moroz or Rudolph to a Workshop instance.
+// Utility to add rules from Moroz, Rudolph, or Zentral to a Workshop instance.
 // Copyright (c) 2025 North Pole Security, Inc.
 package main
 
@@ -14,6 +14,7 @@ import (
 	"github.com/northpolesec/santa-rule-importer/internal/morozconfig"
 	"github.com/northpolesec/santa-rule-importer/internal/rudolph"
 	"github.com/northpolesec/santa-rule-importer/internal/santactl"
+	"github.com/northpolesec/santa-rule-importer/internal/zentral"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -26,29 +27,31 @@ import (
 func usage() {
 	fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS] <path to config.toml|path to config.csv> <server>\n", os.Args[0])
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintf(os.Stderr, "santa-rule-importer - tool to import rules from Moroz and Rudolph to Workshop\n")
+	fmt.Fprintf(os.Stderr, "santa-rule-importer - tool to import rules from Moroz, Rudolph, and Zentral to Workshop\n")
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintf(os.Stderr, "This tool expects the Workshop API Key to be in the WORKSHOP_API_KEY env var\n")
+	fmt.Fprintf(os.Stderr, "For Zentral imports, set ZENTRAL_API_TOKEN env var with your Zentral API token\n")
 	fmt.Fprintln(os.Stderr)
 	flag.PrintDefaults()
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "  Example Usage:")
 	fmt.Fprintf(os.Stderr, "\t%s global.toml nps.workshop.cloud\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "\t%s --zentral-url zentral.example.com nps.workshop.cloud\n", os.Args[0])
 	os.Exit(1)
 }
 
 func main() {
 	useInsecure := flag.Bool("insecure", false, "Use insecure connection")
 	useCustomMsgAsComment := flag.Bool("use-custom-msg-as-comment", false, "Use custom message as comment (moroz only)")
+	zentBaseURL := flag.String("zentral-url", "", "Zentral base URL (e.g., zentral.example.com)")
+	zentTargetType := flag.String("zentral-target-type", "", "Filter Zentral rules by target type (BINARY, CERTIFICATE, etc.)")
+	zentTargetIdentifier := flag.String("zentral-target-identifier", "", "Filter Zentral rules by target identifier")
+	zentConfigID := flag.Int("zentral-config-id", 0, "Filter Zentral rules by configuration ID")
 
 	flag.Usage = usage
 	flag.Parse()
 
 	args := flag.Args()
-	// Check if a filename and server addr was provided as an argument
-	if len(args) < 2 {
-		usage()
-	}
 
 	apiKey := os.Getenv("WORKSHOP_API_KEY")
 	if apiKey == "" {
@@ -56,30 +59,60 @@ func main() {
 		os.Exit(1)
 	}
 
-	filename := args[0]
-	server := args[1]
-
 	var (
 		rules      []*apipb.Rule
 		ruleSrcErr error
+		server     string
 	)
 
-	// Check the file extension and parse CSVs from rudolph or TOML files from
-	// moroz.
-	if strings.HasSuffix(filename, ".csv") {
-		rules, ruleSrcErr = rudolph.ParseRulesFromFile(filename)
-	} else if strings.HasSuffix(filename, ".toml") {
-		// Read the file content
-		rules, ruleSrcErr = morozconfig.ParseRulesFromFile(filename, *useCustomMsgAsComment)
-	} else if strings.HasSuffix(filename, ".json") {
-		rules, ruleSrcErr = santactl.ParseRulesFromFile(filename)
+	// Check if using Zentral API or file input
+	if *zentBaseURL != "" {
+		// Handle Zentral API import
+		if len(args) < 1 {
+			println("Server address required for Zentral imports.")
+			usage()
+		}
+		server = args[0]
+
+		zentToken := os.Getenv("ZENTRAL_API_TOKEN")
+		if zentToken == "" {
+			println("Please set ZENTRAL_API_TOKEN environment variable for Zentral imports.")
+			os.Exit(1)
+		}
+
+		baseURL := *zentBaseURL
+		if !strings.HasPrefix(baseURL, "http") {
+			baseURL = "https://" + baseURL
+		}
+
+		rules, ruleSrcErr = zentral.GetRulesFromZentral(baseURL, zentToken, *zentTargetType, *zentTargetIdentifier, *zentConfigID)
 	} else {
-		println("Unsupported file format. Please provide a .toml or .csv file.")
-		os.Exit(1)
+		// Handle file input
+		if len(args) < 2 {
+			usage()
+		}
+		filename := args[0]
+		server = args[1]
+
+		// Check the file extension and parse CSVs from rudolph or TOML files from moroz.
+		if strings.HasSuffix(filename, ".csv") {
+			rules, ruleSrcErr = rudolph.ParseRulesFromFile(filename)
+		} else if strings.HasSuffix(filename, ".toml") {
+			rules, ruleSrcErr = morozconfig.ParseRulesFromFile(filename, *useCustomMsgAsComment)
+		} else if strings.HasSuffix(filename, ".json") {
+			rules, ruleSrcErr = santactl.ParseRulesFromFile(filename)
+		} else {
+			println("Unsupported file format. Please provide a .toml, .csv, or .json file.")
+			os.Exit(1)
+		}
 	}
 
 	if ruleSrcErr != nil {
-		log.Fatalf("Failed to read config file: %s %v", filename, ruleSrcErr)
+		if *zentBaseURL != "" {
+			log.Fatalf("Failed to retrieve rules from Zentral: %v", ruleSrcErr)
+		} else {
+			log.Fatalf("Failed to read config file: %v", ruleSrcErr)
+		}
 	}
 
 	opts := []grpc.DialOption{

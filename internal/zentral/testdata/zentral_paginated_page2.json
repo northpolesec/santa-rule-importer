@@ -1,0 +1,18 @@
+{
+    "count": 5,
+    "next": null,
+    "previous": "https://zentral.example.com/api/santa/rules/?page=1",
+    "results": [
+        {
+            "id": 3,
+            "target_type": "TEAMID",
+            "target_identifier": "team1",
+            "policy": "ALLOWLIST",
+            "custom_msg": "Test rule 3",
+            "description": "Third test rule",
+            "configuration": 2,
+            "created_at": "2025-01-01T12:00:00Z",
+            "updated_at": "2025-01-01T12:00:00Z"
+        }
+    ]
+}
