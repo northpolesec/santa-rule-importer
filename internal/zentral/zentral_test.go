@@ -16,9 +16,9 @@ import (
 func TestNewClient(t *testing.T) {
 	baseURL := "https://zentral.example.com"
 	token := "test-token"
-	
+
 	client := zentral.NewClient(baseURL, token)
-	
+
 	test.Eq(t, baseURL, client.BaseURL)
 	test.Eq(t, token, client.Token)
 	must.NotNil(t, client.HTTPClient)
@@ -28,27 +28,27 @@ func TestClientGetRules(t *testing.T) {
 	// Load test data
 	testData, err := os.ReadFile("testdata/zentral_rules.json")
 	must.NoError(t, err)
-	
+
 	// Create test server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify the request
 		test.Eq(t, "/api/santa/rules/", r.URL.Path)
 		test.Eq(t, "Token test-token", r.Header.Get("Authorization"))
 		test.Eq(t, "application/json", r.Header.Get("Content-Type"))
-		
+
 		// Return test data
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write(testData)
 	}))
 	defer server.Close()
-	
+
 	client := zentral.NewClient(server.URL, "test-token")
 	rules, err := client.GetRules("", "", 0)
-	
+
 	must.NoError(t, err)
 	test.Eq(t, 3, len(rules))
-	
+
 	// Check first rule
 	test.Eq(t, 1, rules[0].ID)
 	test.Eq(t, "BINARY", rules[0].TargetType)
@@ -57,7 +57,7 @@ func TestClientGetRules(t *testing.T) {
 	test.Eq(t, "Malicious binary detected", rules[0].CustomMsg)
 	test.Eq(t, "Known malware hash from threat intel", rules[0].Description)
 	test.Eq(t, 123, rules[0].ConfigurationID)
-	
+
 	// Check second rule
 	test.Eq(t, 2, rules[1].ID)
 	test.Eq(t, "CERTIFICATE", rules[1].TargetType)
@@ -66,7 +66,7 @@ func TestClientGetRules(t *testing.T) {
 	test.Eq(t, "Trusted certificate", rules[1].CustomMsg)
 	test.Eq(t, "Certificate for approved application", rules[1].Description)
 	test.Eq(t, 123, rules[1].ConfigurationID)
-	
+
 	// Check third rule
 	test.Eq(t, 3, rules[2].ID)
 	test.Eq(t, "TEAMID", rules[2].TargetType)
@@ -85,7 +85,7 @@ func TestClientGetRulesWithFilters(t *testing.T) {
 		test.Eq(t, "BINARY", query.Get("target_type"))
 		test.Eq(t, "somehash", query.Get("target_identifier"))
 		test.Eq(t, "123", query.Get("configuration_id"))
-		
+
 		// Return empty result
 		response := zentral.APIResponse{
 			Count:    0,
@@ -93,16 +93,16 @@ func TestClientGetRulesWithFilters(t *testing.T) {
 			Previous: nil,
 			Results:  []zentral.Rule{},
 		}
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(response)
 	}))
 	defer server.Close()
-	
+
 	client := zentral.NewClient(server.URL, "test-token")
 	rules, err := client.GetRules("BINARY", "somehash", 123)
-	
+
 	must.NoError(t, err)
 	test.Eq(t, 0, len(rules))
 }
@@ -110,18 +110,18 @@ func TestClientGetRulesWithFilters(t *testing.T) {
 func TestClientGetRulesPaginated(t *testing.T) {
 	page1Data, err := os.ReadFile("testdata/zentral_paginated_page1.json")
 	must.NoError(t, err)
-	
+
 	page2Data, err := os.ReadFile("testdata/zentral_paginated_page2.json")
 	must.NoError(t, err)
-	
+
 	requestCount := 0
 	var server *httptest.Server
 	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		requestCount++
-		
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		
+
 		// Fix the pagination by updating the next URL to point to our test server
 		if r.URL.Query().Get("page") == "2" {
 			w.Write(page2Data)
@@ -135,14 +135,14 @@ func TestClientGetRulesPaginated(t *testing.T) {
 		}
 	}))
 	defer server.Close()
-	
+
 	client := zentral.NewClient(server.URL, "test-token")
 	rules, err := client.GetRules("", "", 0)
-	
+
 	must.NoError(t, err)
-	test.Eq(t, 3, len(rules)) // Total rules across both pages
+	test.Eq(t, 3, len(rules))   // Total rules across both pages
 	test.Eq(t, 2, requestCount) // Should have made 2 requests
-	
+
 	// Check that we got rules from both pages
 	test.Eq(t, "hash1", rules[0].TargetIdentifier)
 	test.Eq(t, "cert1", rules[1].TargetIdentifier)
@@ -155,10 +155,10 @@ func TestClientGetRulesAPIError(t *testing.T) {
 		w.Write([]byte("Unauthorized"))
 	}))
 	defer server.Close()
-	
+
 	client := zentral.NewClient(server.URL, "invalid-token")
 	_, err := client.GetRules("", "", 0)
-	
+
 	must.Error(t, err)
 	must.StrContains(t, err.Error(), "API request failed with status 401")
 }
@@ -170,10 +170,10 @@ func TestClientGetRulesInvalidJSON(t *testing.T) {
 		w.Write([]byte("invalid json"))
 	}))
 	defer server.Close()
-	
+
 	client := zentral.NewClient(server.URL, "test-token")
 	_, err := client.GetRules("", "", 0)
-	
+
 	must.Error(t, err)
 	must.StrContains(t, err.Error(), "failed to parse API response")
 }
@@ -199,18 +199,18 @@ func TestConvertToWorkshopRules(t *testing.T) {
 			ConfigurationID:  456,
 		},
 	}
-	
+
 	workshopRules := zentral.ConvertToWorkshopRules(zenRules)
-	
+
 	test.Eq(t, 2, len(workshopRules))
-	
+
 	// Check first rule conversion
 	test.Eq(t, "BINARY", workshopRules[0].RuleType.String())
 	test.Eq(t, "BLOCKLIST", workshopRules[0].Policy.String())
 	test.Eq(t, "hash123", workshopRules[0].Identifier)
 	test.Eq(t, "Blocked binary", workshopRules[0].CustomMsg)
 	test.Eq(t, "Malicious file", workshopRules[0].Comment)
-	
+
 	// Check second rule conversion
 	test.Eq(t, "CERTIFICATE", workshopRules[1].RuleType.String())
 	test.Eq(t, "ALLOWLIST", workshopRules[1].Policy.String())
@@ -222,19 +222,19 @@ func TestConvertToWorkshopRules(t *testing.T) {
 func TestGetRulesFromZentral(t *testing.T) {
 	testData, err := os.ReadFile("testdata/zentral_rules.json")
 	must.NoError(t, err)
-	
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write(testData)
 	}))
 	defer server.Close()
-	
+
 	rules, err := zentral.GetRulesFromZentral(server.URL, "test-token", "", "", 0)
-	
+
 	must.NoError(t, err)
 	test.Eq(t, 3, len(rules))
-	
+
 	// Check that rules are properly converted
 	test.Eq(t, "BINARY", rules[0].RuleType.String())
 	test.Eq(t, "BLOCKLIST", rules[0].Policy.String())

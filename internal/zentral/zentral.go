@@ -15,23 +15,23 @@ import (
 
 // Rule represents a Santa rule from Zentral API response
 type Rule struct {
-	ID                int    `json:"id"`
-	TargetType        string `json:"target_type"`
-	TargetIdentifier  string `json:"target_identifier"`
-	Policy            string `json:"policy"`
-	CustomMsg         string `json:"custom_msg"`
-	Description       string `json:"description"`
-	ConfigurationID   int    `json:"configuration"`
-	CreatedAt         string `json:"created_at"`
-	UpdatedAt         string `json:"updated_at"`
+	ID               int    `json:"id"`
+	TargetType       string `json:"target_type"`
+	TargetIdentifier string `json:"target_identifier"`
+	Policy           string `json:"policy"`
+	CustomMsg        string `json:"custom_msg"`
+	Description      string `json:"description"`
+	ConfigurationID  int    `json:"configuration"`
+	CreatedAt        string `json:"created_at"`
+	UpdatedAt        string `json:"updated_at"`
 }
 
 // APIResponse represents the paginated response from Zentral API
 type APIResponse struct {
-	Count    int    `json:"count"`
+	Count    int     `json:"count"`
 	Next     *string `json:"next"`
 	Previous *string `json:"previous"`
-	Results  []Rule `json:"results"`
+	Results  []Rule  `json:"results"`
 }
 
 // Client represents a Zentral API client
@@ -165,7 +165,7 @@ func ConvertToWorkshopRules(zenRules []Rule) []*apipb.Rule {
 // GetRulesFromZentral is a convenience function that fetches and converts rules
 func GetRulesFromZentral(baseURL, token, targetType, targetIdentifier string, configurationID int) ([]*apipb.Rule, error) {
 	client := NewClient(baseURL, token)
-	
+
 	zenRules, err := client.GetRules(targetType, targetIdentifier, configurationID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get rules from Zentral: %w", err)
