@@ -30,7 +30,7 @@ func usage() {
 	fmt.Fprintf(os.Stderr, "santa-rule-importer - tool to import rules from Moroz, Rudolph, and Zentral to Workshop\n")
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintf(os.Stderr, "This tool expects the Workshop API Key to be in the WORKSHOP_API_KEY env var\n")
-	fmt.Fprintf(os.Stderr, "For Zentral imports, set ZENTRAL_API_TOKEN env var with your Zentral API token\n")
+	fmt.Fprintf(os.Stderr, "For Zentral imports, set ZENTRAL_API_KEY env var with your Zentral API token\n")
 	fmt.Fprintln(os.Stderr)
 	flag.PrintDefaults()
 	fmt.Fprintln(os.Stderr)
@@ -74,9 +74,9 @@ func main() {
 		}
 		server = args[0]
 
-		zentToken := os.Getenv("ZENTRAL_API_TOKEN")
-		if zentToken == "" {
-			println("Please set ZENTRAL_API_TOKEN environment variable for Zentral imports.")
+		zentAPIKey := os.Getenv("ZENTRAL_API_KEY")
+		if zentAPIKey == "" {
+			println("Please set ZENTRAL_API_KEY environment variable for Zentral imports.")
 			os.Exit(1)
 		}
 
@@ -85,7 +85,7 @@ func main() {
 			baseURL = "https://" + baseURL
 		}
 
-		rules, ruleSrcErr = zentral.GetRulesFromZentral(baseURL, zentToken, *zentTargetType, *zentTargetIdentifier, *zentConfigID)
+		rules, ruleSrcErr = zentral.GetRulesFromZentral(baseURL, zentAPIKey, *zentTargetType, *zentTargetIdentifier, *zentConfigID)
 	} else {
 		// Handle file input
 		if len(args) < 2 {
