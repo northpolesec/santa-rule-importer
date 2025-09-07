@@ -1,10 +1,10 @@
 # Santa Rule Importer (santa-rule-importer)
 
-This project reads all rules out of either a
-[Moroz](https://github.com/groob/moroz) TOML config or
+This project reads all rules out of: a
+[Moroz](https://github.com/groob/moroz) TOML config, a
 [Rudolph](https://github.com/airbnb/rudolph/tree/master) [CSV rule
-export](https://github.com/airbnb/rudolph/blob/master/docs/rules.md#importing-or-exporting-rules)
-or a Zentral server and imports it into a Workshop instance using the API.
+export](https://github.com/airbnb/rudolph/blob/master/docs/rules.md#importing-or-exporting-rules),
+or a Zentral server, and imports it into a Workshop instance using the API.
 
 # Table of Contents
 
