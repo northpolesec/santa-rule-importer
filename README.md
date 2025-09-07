@@ -1,4 +1,4 @@
-# Santa Rule Importer (santaruleimporter)
+# Santa Rule Importer (santa-rule-importer)
 
 This project reads all rules out of either a
 [Moroz](https://github.com/groob/moroz) TOML config or
