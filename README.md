@@ -10,7 +10,6 @@ or a Zentral server and imports it into a Workshop instance using the API.
 
 - [Quick Start](#quick-start)
 - [Building](#building)
-	- [Build Details](#build-details)
 - [Usage](#usage)
 
 # Quick Start
@@ -18,7 +17,7 @@ or a Zentral server and imports it into a Workshop instance using the API.
 Run the following:
 - `make deps`
 - `make build`
-- Export `WORKSHOP_API_KEY` with your Workshop API key which must have the superadmin role.
+- Export `WORKSHOP_API_KEY` with your Workshop API key which must have the `rules:write` permission
 - run ./santa-rule-importer
 
 # Building
