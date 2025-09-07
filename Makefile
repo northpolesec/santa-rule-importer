@@ -9,8 +9,6 @@ all: deps build
 .PHONY: deps
 .ONESHELL: deps
 deps:
-	export GOPRIVATE="buf.build/gen/go,${GOPRIVATE}"
-	buf registry login
 	go mod download
 
 # Build the binary
