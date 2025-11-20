@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/northpolesec/santa-rule-importer/internal/faa"
 	"github.com/northpolesec/santa-rule-importer/internal/morozconfig"
 	"github.com/northpolesec/santa-rule-importer/internal/rudolph"
 	"github.com/northpolesec/santa-rule-importer/internal/santactl"
@@ -25,9 +26,9 @@ import (
 )
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS] <path to config.toml|path to config.csv> <server>\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS] <path to config.toml|path to config.csv|path to plist> <server>\n", os.Args[0])
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintf(os.Stderr, "santa-rule-importer - tool to import rules from Moroz, Rudolph, and Zentral to Workshop\n")
+	fmt.Fprintf(os.Stderr, "santa-rule-importer - tool to import rules from Moroz, Rudolph, Zentral, or FAA plist to Workshop\n")
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintf(os.Stderr, "This tool expects the Workshop API Key to be in the WORKSHOP_API_KEY env var\n")
 	fmt.Fprintf(os.Stderr, "For Zentral imports, set ZENTRAL_API_KEY env var with your Zentral API token\n")
@@ -37,6 +38,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, "  Example Usage:")
 	fmt.Fprintf(os.Stderr, "\t%s global.toml nps.workshop.cloud\n", os.Args[0])
 	fmt.Fprintf(os.Stderr, "\t%s --zentral-url zentral.example.com nps.workshop.cloud\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "\t%s --faa faa.plist nps.workshop.cloud\n", os.Args[0])
 	os.Exit(1)
 }
 
@@ -47,6 +49,7 @@ func main() {
 	zentTargetType := flag.String("zentral-target-type", "", "Filter Zentral rules by target type (BINARY, CERTIFICATE, etc.)")
 	zentTargetIdentifier := flag.String("zentral-target-identifier", "", "Filter Zentral rules by target identifier")
 	zentConfigID := flag.Int("zentral-config-id", 0, "Filter Zentral rules by configuration ID")
+	faaPlistPath := flag.String("faa", "", "Path to FAA plist file for file access rules")
 
 	flag.Usage = usage
 	flag.Parse()
@@ -60,10 +63,61 @@ func main() {
 	}
 
 	var (
-		rules      []*apipb.Rule
-		ruleSrcErr error
-		server     string
+		rules           []*apipb.Rule
+		fileAccessRules []*apipb.FileAccessRule
+		ruleSrcErr      error
+		server          string
 	)
+
+	// Check if using FAA plist
+	if *faaPlistPath != "" {
+		if len(args) < 1 {
+			println("Server address required for FAA imports.")
+			usage()
+		}
+		server = args[0]
+
+		fileAccessRules, ruleSrcErr = faa.ParseRulesFromFile(*faaPlistPath)
+		if ruleSrcErr != nil {
+			log.Fatalf("Failed to parse FAA plist file: %v", ruleSrcErr)
+		}
+
+		opts := []grpc.DialOption{
+			grpc.WithPerRPCCredentials(apiKeyAuthorizer(apiKey)),
+		}
+
+		if *useInsecure {
+			opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		} else {
+			opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(&tls.Config{})))
+		}
+
+		conn, err := grpc.NewClient(fmt.Sprintf("dns:%s", server), opts...)
+		if err != nil {
+			log.Fatalf("Failed to connect to server: %v", err)
+		}
+
+		// Create a gRPC client
+		client := svcpb.NewWorkshopServiceClient(conn)
+		successes := len(fileAccessRules)
+
+		// Iterate over the file access rules and add them to the Workshop instance
+		for i, rule := range fileAccessRules {
+			req := &apipb.CreateFileAccessRuleRequest{
+				Rule: rule,
+			}
+			_, err := client.CreateFileAccessRule(context.Background(), req)
+
+			if err != nil {
+				log.Printf("Failed to add file access rule %d: %s %v\n", i, rule.GetName(), err)
+				successes--
+				continue
+			}
+		}
+
+		fmt.Printf("%d/%d file access rules added successfully!\n", successes, len(fileAccessRules))
+		return
+	}
 
 	// Check if using Zentral API or file input
 	if *zentBaseURL != "" {
