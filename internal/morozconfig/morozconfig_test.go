@@ -9,7 +9,6 @@ import (
 	"github.com/shoenig/test"
 	"github.com/shoenig/test/must"
 
-	syncpb "buf.build/gen/go/northpolesec/protos/protocolbuffers/go/sync"
 	apipb "buf.build/gen/go/northpolesec/workshop-api/protocolbuffers/go/workshop/v1"
 )
 
@@ -26,15 +25,15 @@ func TestParseRulesFromFile(t *testing.T) {
 
 	must.Eq(t, 2, len(rules))
 
-	test.Eq(t, syncpb.Policy_BLOCKLIST, rules[0].GetPolicy())
-	test.Eq(t, syncpb.RuleType_SIGNINGID, rules[0].GetRuleType())
+	test.Eq(t, apipb.Policy_BLOCKLIST, rules[0].GetPolicy())
+	test.Eq(t, apipb.RuleType_SIGNINGID, rules[0].GetRuleType())
 	test.Eq(t, "platform:com.apple.osacompile", rules[0].GetIdentifier())
 	test.Eq(t, "https://gist.github.com/pmarkowsky/bfa5840261351f506444b2d8541e9654",
 		rules[0].GetCustomUrl())
 	test.Eq(t, "osacompile is banned by policy", rules[0].GetCustomMsg())
 
-	test.Eq(t, syncpb.Policy_BLOCKLIST, rules[1].GetPolicy())
-	test.Eq(t, syncpb.RuleType_SIGNINGID, rules[1].GetRuleType())
+	test.Eq(t, apipb.Policy_BLOCKLIST, rules[1].GetPolicy())
+	test.Eq(t, apipb.RuleType_SIGNINGID, rules[1].GetRuleType())
 	test.Eq(t, "platform:com.apple.osascript", rules[1].GetIdentifier())
 	test.Eq(t, "https://www.youtube.com/watch?v=dQw4w9WgXcQ", rules[1].GetCustomUrl())
 	test.Eq(t, "Where does this go?", rules[1].GetCustomMsg())

@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDescription</key>
+			<string>Santa Configuration</string>
+			<key>PayloadDisplayName</key>
+			<string>Santa</string>
+			<key>PayloadIdentifier</key>
+			<string>com.northpolesec.santa.config</string>
+			<key>PayloadType</key>
+			<string>com.northpolesec.santa</string>
+			<key>PayloadUUID</key>
+			<string>12345678-1234-1234-1234-123456789012</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>ClientMode</key>
+			<integer>1</integer>
+			<key>StaticRules</key>
+			<array>
+				<dict>
+					<key>identifier</key>
+					<string>ZMCG7MLDV9</string>
+					<key>policy</key>
+					<string>ALLOWLIST</string>
+					<key>rule_type</key>
+					<string>TEAMID</string>
+					<key>comment</key>
+					<string>North Pole Security Inc</string>
+				</dict>
+				<dict>
+					<key>identifier</key>
+					<string>a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2</string>
+					<key>policy</key>
+					<string>BLOCKLIST</string>
+					<key>rule_type</key>
+					<string>BINARY</string>
+					<key>custom_msg</key>
+					<string>This binary is not allowed</string>
+					<key>custom_url</key>
+					<string>https://example.com/help</string>
+				</dict>
+				<dict>
+					<key>identifier</key>
+					<string>EQHXZ8M8AV:com.google.Chrome</string>
+					<key>policy</key>
+					<string>ALLOWLIST</string>
+					<key>rule_type</key>
+					<string>SIGNINGID</string>
+					<key>cel_expr</key>
+					<string>target.signing_time >= timestamp('2025-05-31T00:00:00Z')</string>
+				</dict>
+			</array>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>Santa Configuration Profile</string>
+	<key>PayloadDisplayName</key>
+	<string>Santa</string>
+	<key>PayloadIdentifier</key>
+	<string>com.northpolesec.santa</string>
+	<key>PayloadOrganization</key>
+	<string>North Pole Security</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>87654321-4321-4321-4321-210987654321</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>
