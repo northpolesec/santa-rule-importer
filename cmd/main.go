@@ -141,6 +141,8 @@ func main() {
 
 	// Iterate over the rules and add them to the Workshop instance
 	for i, rule := range rules {
+		// TODO: Support setting the tag
+		rule.SetTag("global")
 		req.Rule = rule
 		_, err := client.CreateRule(context.Background(), req)
 
