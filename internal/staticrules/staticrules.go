@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"howett.net/plist"
 	"github.com/northpolesec/santa-rule-importer/internal/rulehelpers"
+	"howett.net/plist"
 
 	apipb "buf.build/gen/go/northpolesec/workshop-api/protocolbuffers/go/workshop/v1"
 )
