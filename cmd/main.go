@@ -14,6 +14,7 @@ import (
 	"github.com/northpolesec/santa-rule-importer/internal/morozconfig"
 	"github.com/northpolesec/santa-rule-importer/internal/rudolph"
 	"github.com/northpolesec/santa-rule-importer/internal/santactl"
+	"github.com/northpolesec/santa-rule-importer/internal/staticrules"
 	"github.com/northpolesec/santa-rule-importer/internal/zentral"
 
 	"google.golang.org/grpc"
@@ -25,9 +26,9 @@ import (
 )
 
 func usage() {
-	fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS] <path to config.toml|path to config.csv> <server>\n", os.Args[0])
+	fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS] <path to input file> <server>\n", os.Args[0])
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintf(os.Stderr, "santa-rule-importer - tool to import rules from Moroz, Rudolph, and Zentral to Workshop\n")
+	fmt.Fprintf(os.Stderr, "santa-rule-importer - tool to import rules from Moroz, Rudolph, Zentral, and StaticRules to Workshop\n")
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintf(os.Stderr, "This tool expects the Workshop API Key to be in the WORKSHOP_API_KEY env var\n")
 	fmt.Fprintf(os.Stderr, "For Zentral imports, set ZENTRAL_API_KEY env var with your Zentral API token\n")
@@ -101,8 +102,10 @@ func main() {
 			rules, ruleSrcErr = morozconfig.ParseRulesFromFile(filename, *useCustomMsgAsComment)
 		} else if strings.HasSuffix(filename, ".json") {
 			rules, ruleSrcErr = santactl.ParseRulesFromFile(filename)
+		} else if strings.HasSuffix(filename, ".mobileconfig") {
+			rules, ruleSrcErr = staticrules.ParseRulesFromFile(filename)
 		} else {
-			println("Unsupported file format. Please provide a .toml, .csv, or .json file.")
+			println("Unsupported file format. Please provide a .toml, .csv, .json, or .mobileconfig file.")
 			os.Exit(1)
 		}
 	}
@@ -111,7 +114,7 @@ func main() {
 		if *zentBaseURL != "" {
 			log.Fatalf("Failed to retrieve rules from Zentral: %v", ruleSrcErr)
 		} else {
-			log.Fatalf("Failed to read config file: %v", ruleSrcErr)
+			log.Fatalf("Failed to read input file: %v", ruleSrcErr)
 		}
 	}
 
@@ -138,6 +141,8 @@ func main() {
 
 	// Iterate over the rules and add them to the Workshop instance
 	for i, rule := range rules {
+		// TODO: Support setting the tag
+		rule.SetTag("global")
 		req.Rule = rule
 		_, err := client.CreateRule(context.Background(), req)
 
