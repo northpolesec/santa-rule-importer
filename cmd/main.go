@@ -163,4 +163,3 @@ func main() {
 
 	fmt.Printf("%d/%d rules added successfully!\n", successes, len(rules))
 }
-

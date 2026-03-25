@@ -26,12 +26,15 @@ const (
 // Overridden in tests via tokenFilePathOverride.
 var tokenFilePathOverride string
 
-func tokenFilePath() string {
+func tokenFilePath() (string, error) {
 	if tokenFilePathOverride != "" {
-		return tokenFilePathOverride
+		return tokenFilePathOverride, nil
 	}
-	usr, _ := user.Current()
-	return filepath.Join(usr.HomeDir, tokenFilePathSuffix)
+	usr, err := user.Current()
+	if err != nil {
+		return "", fmt.Errorf("failed to get current user: %w", err)
+	}
+	return filepath.Join(usr.HomeDir, tokenFilePathSuffix), nil
 }
 
 // GetAndStoreToken retrieves a device access token and stores it locally.
@@ -113,8 +116,13 @@ func createConfig(endpoint string) (*oauth2.Config, bool, error) {
 	}
 
 	resp, err := http.Get(url)
-	if err != nil || resp.StatusCode != 200 {
+	if err != nil {
 		return nil, insecure, fmt.Errorf("failed to get client ID from endpoint: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, insecure, fmt.Errorf("failed to get client ID from endpoint: status %d", resp.StatusCode)
 	}
 
 	clientID, err := io.ReadAll(resp.Body)
@@ -132,7 +140,12 @@ func createConfig(endpoint string) (*oauth2.Config, bool, error) {
 }
 
 func apiTokenFromFile() *oauth2.Token {
-	fileContent, err := os.ReadFile(tokenFilePath())
+	path, err := tokenFilePath()
+	if err != nil {
+		return nil
+	}
+
+	fileContent, err := os.ReadFile(path)
 	if err != nil {
 		return nil
 	}
@@ -150,16 +163,25 @@ func apiTokenFromFile() *oauth2.Token {
 }
 
 func writeTokenToFile(token *oauth2.Token) error {
+	path, err := tokenFilePath()
+	if err != nil {
+		return err
+	}
+
 	b, err := json.Marshal(token)
 	if err != nil {
 		return err
 	}
 
-	return os.WriteFile(tokenFilePath(), b, 0600)
+	return os.WriteFile(path, b, 0600)
 }
 
 func deleteTokenFromFile() error {
-	return os.Remove(tokenFilePath())
+	path, err := tokenFilePath()
+	if err != nil {
+		return err
+	}
+	return os.Remove(path)
 }
 
 // apiKeyAuthorizer is a PerRPCCredentials implementation that uses a static API key.
@@ -189,7 +211,9 @@ func (o oauthRPCCreds) GetRequestMetadata(ctx context.Context, uri ...string) (m
 	}
 
 	addTokenExpiry(token)
-	writeTokenToFile(token)
+	if err := writeTokenToFile(token); err != nil {
+		log.Printf("Warning: failed to persist refreshed token: %v", err)
+	}
 
 	if !o.insecure {
 		ri, _ := credentials.RequestInfoFromContext(ctx)
