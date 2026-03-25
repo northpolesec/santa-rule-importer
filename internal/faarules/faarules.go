@@ -2,7 +2,6 @@ package faarules
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"strings"
 
@@ -101,12 +100,13 @@ func ParseRulesFromMobileConfig(filePath string) ([]*apipb.FileAccessRule, error
 		return nil, nil
 	}
 
-	policy := config.PayloadContent[0].FileAccessPolicy
-	if policy == nil {
-		return nil, nil
+	for _, pc := range config.PayloadContent {
+		if pc.FileAccessPolicy != nil {
+			return convertWatchItems(pc.FileAccessPolicy)
+		}
 	}
 
-	return convertWatchItems(policy)
+	return nil, nil
 }
 
 func convertWatchItems(policy *FAAPolicy) ([]*apipb.FileAccessRule, error) {
@@ -151,8 +151,7 @@ func convertWatchItem(name string, item *WatchItem, policy *FAAPolicy) (*apipb.F
 			if proc.SigningID != "" {
 				signingIDs = append(signingIDs, "platform:"+proc.SigningID)
 			} else {
-				log.Printf("Warning: skipping watch item %q: PlatformBinary is true but no SigningID is set", name)
-				return nil, nil
+				return nil, fmt.Errorf("PlatformBinary is true but no SigningID is set")
 			}
 			continue
 		}

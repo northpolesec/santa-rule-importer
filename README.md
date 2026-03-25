@@ -31,15 +31,19 @@ prompt$ make build # build the binary
 
 ```
 $  ./santa-rule-importer --help
-Usage: ./santa-rule-importer [OPTIONS] <path to config.toml|path to config.csv> <server>
+Usage: ./santa-rule-importer [OPTIONS] <path to input file> <server>
 
-santa-rule-importer - tool to import rules from Moroz, Rudolph, and Zentral to Workshop
+santa-rule-importer - tool to import rules from Moroz, Rudolph, Zentral, StaticRules, and FAA policies to Workshop
 
 This tool expects the Workshop API Key to be in the WORKSHOP_API_KEY env var
 For Zentral imports, set ZENTRAL_API_KEY env var with your Zentral API token
 
+  -faa-only
+    	Import only file access rules from a mobileconfig (skip static rules)
   -insecure
     	Use insecure connection
+  -static-rules-only
+    	Import only static rules from a mobileconfig (skip file access rules)
   -use-custom-msg-as-comment
     	Use custom message as comment (moroz only)
   -zentral-config-id int
@@ -53,7 +57,7 @@ For Zentral imports, set ZENTRAL_API_KEY env var with your Zentral API token
 
   Example Usage:
 	./santa-rule-importer global.toml nps.workshop.cloud
-	./santa-rule-importer faa_policy.plist nps.workshop.cloud
+	./santa-rule-importer --zentral-url zentral.example.com nps.workshop.cloud
 ```
 
 ## File Access Authorization (FAA) Import

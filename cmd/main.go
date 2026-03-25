@@ -116,7 +116,11 @@ func main() {
 				rules, ruleSrcErr = staticrules.ParseRulesFromFile(filename)
 			}
 			if !*staticRulesOnly && (ruleSrcErr == nil) {
-				faaRules, _ = faarules.ParseRulesFromMobileConfig(filename)
+				var faaErr error
+				faaRules, faaErr = faarules.ParseRulesFromMobileConfig(filename)
+				if faaErr != nil {
+					ruleSrcErr = faaErr
+				}
 			}
 		} else if strings.HasSuffix(filename, ".plist") {
 			faaRules, ruleSrcErr = faarules.ParseRulesFromFile(filename)
