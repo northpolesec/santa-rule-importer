@@ -3,6 +3,7 @@ package faarules
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"howett.net/plist"
@@ -114,8 +115,15 @@ func convertWatchItems(policy *FAAPolicy) ([]*apipb.FileAccessRule, error) {
 		return []*apipb.FileAccessRule{}, nil
 	}
 
+	names := make([]string, 0, len(policy.WatchItems))
+	for name := range policy.WatchItems {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
 	var rules []*apipb.FileAccessRule
-	for name, item := range policy.WatchItems {
+	for _, name := range names {
+		item := policy.WatchItems[name]
 		rule, err := convertWatchItem(name, &item, policy)
 		if err != nil {
 			return nil, fmt.Errorf("watch item %q: %w", name, err)
@@ -198,9 +206,14 @@ func convertWatchItem(name string, item *WatchItem, policy *FAAPolicy) (*apipb.F
 		eventDetailText = policy.EventDetailText
 	}
 
+	ruleType, err := getRuleType(item.Options.RuleType)
+	if err != nil {
+		return nil, err
+	}
+
 	rule := &apipb.FileAccessRule{
 		Name:                      name,
-		RuleType:                  getRuleType(item.Options.RuleType),
+		RuleType:                  ruleType,
 		AllowReadAccess:           allowReadAccess,
 		BlockViolations:           blockViolations,
 		EnableSilentMode:          item.Options.EnableSilentMode,
@@ -220,17 +233,17 @@ func convertWatchItem(name string, item *WatchItem, policy *FAAPolicy) (*apipb.F
 	return rule, nil
 }
 
-func getRuleType(s string) apipb.FileAccessRuleType {
+func getRuleType(s string) (apipb.FileAccessRuleType, error) {
 	switch strings.ToUpper(s) {
 	case "PATHSWITHALLOWEDPROCESSES":
-		return apipb.FileAccessRuleType_FILE_ACCESS_RULE_TYPE_PATHS_WITH_ALLOWED_PROCESSES
+		return apipb.FileAccessRuleType_FILE_ACCESS_RULE_TYPE_PATHS_WITH_ALLOWED_PROCESSES, nil
 	case "PATHSWITHDENIEDPROCESSES":
-		return apipb.FileAccessRuleType_FILE_ACCESS_RULE_TYPE_PATHS_WITH_DENIED_PROCESSES
+		return apipb.FileAccessRuleType_FILE_ACCESS_RULE_TYPE_PATHS_WITH_DENIED_PROCESSES, nil
 	case "PROCESSESWITHALLOWEDPATHS":
-		return apipb.FileAccessRuleType_FILE_ACCESS_RULE_TYPE_PROCESSES_WITH_ALLOWED_PATHS
+		return apipb.FileAccessRuleType_FILE_ACCESS_RULE_TYPE_PROCESSES_WITH_ALLOWED_PATHS, nil
 	case "PROCESSESWITHDENIEDPATHS":
-		return apipb.FileAccessRuleType_FILE_ACCESS_RULE_TYPE_PROCESSES_WITH_DENIED_PATHS
+		return apipb.FileAccessRuleType_FILE_ACCESS_RULE_TYPE_PROCESSES_WITH_DENIED_PATHS, nil
 	default:
-		return apipb.FileAccessRuleType_FILE_ACCESS_RULE_TYPE_UNSPECIFIED
+		return apipb.FileAccessRuleType_FILE_ACCESS_RULE_TYPE_UNSPECIFIED, fmt.Errorf("unknown rule type %q", s)
 	}
 }
