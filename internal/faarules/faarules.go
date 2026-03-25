@@ -13,9 +13,9 @@ import (
 
 // FAAPolicy represents the root structure of a Santa File Access Authorization policy plist.
 type FAAPolicy struct {
-	Version         string              `plist:"Version"`
-	EventDetailURL  string              `plist:"EventDetailURL"`
-	EventDetailText string              `plist:"EventDetailText"`
+	Version         string               `plist:"Version"`
+	EventDetailURL  string               `plist:"EventDetailURL"`
+	EventDetailText string               `plist:"EventDetailText"`
 	WatchItems      map[string]WatchItem `plist:"WatchItems"`
 }
 
@@ -139,11 +139,11 @@ func convertWatchItem(name string, item *WatchItem, policy *FAAPolicy) (*apipb.F
 	}
 
 	var (
-		signingIDs    []string
-		teamIDs       []string
-		cdHashes      []string
-		certSha256s   []string
-		binaryPaths   []string
+		signingIDs  []string
+		teamIDs     []string
+		cdHashes    []string
+		certSha256s []string
+		binaryPaths []string
 	)
 
 	for _, proc := range item.Processes {
@@ -200,22 +200,22 @@ func convertWatchItem(name string, item *WatchItem, policy *FAAPolicy) (*apipb.F
 	}
 
 	rule := &apipb.FileAccessRule{
-		Name:                    name,
-		RuleType:                getRuleType(item.Options.RuleType),
-		AllowReadAccess:         allowReadAccess,
-		BlockViolations:         blockViolations,
-		EnableSilentMode:        item.Options.EnableSilentMode,
-		EnableSilentTtyMode:     item.Options.EnableSilentTTYMode,
-		BlockMessage:            item.Options.BlockMessage,
-		EventDetailUrl:          eventDetailURL,
-		EventDetailText:         eventDetailText,
-		PathLiterals:            pathLiterals,
-		PathPrefixes:            pathPrefixes,
-		ProcessSigningIds:       signingIDs,
-		ProcessTeamIds:          teamIDs,
-		ProcessCdHashes:         cdHashes,
+		Name:                      name,
+		RuleType:                  getRuleType(item.Options.RuleType),
+		AllowReadAccess:           allowReadAccess,
+		BlockViolations:           blockViolations,
+		EnableSilentMode:          item.Options.EnableSilentMode,
+		EnableSilentTtyMode:       item.Options.EnableSilentTTYMode,
+		BlockMessage:              item.Options.BlockMessage,
+		EventDetailUrl:            eventDetailURL,
+		EventDetailText:           eventDetailText,
+		PathLiterals:              pathLiterals,
+		PathPrefixes:              pathPrefixes,
+		ProcessSigningIds:         signingIDs,
+		ProcessTeamIds:            teamIDs,
+		ProcessCdHashes:           cdHashes,
 		ProcessCertificateSha256S: certSha256s,
-		ProcessBinaryPaths:      binaryPaths,
+		ProcessBinaryPaths:        binaryPaths,
 	}
 
 	return rule, nil
