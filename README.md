@@ -4,7 +4,8 @@ This project reads all rules out of: a
 [Moroz](https://github.com/groob/moroz) TOML config, a
 [Rudolph](https://github.com/airbnb/rudolph/tree/master) [CSV rule
 export](https://github.com/airbnb/rudolph/blob/master/docs/rules.md#importing-or-exporting-rules),
-or a Zentral server, and imports it into a Workshop instance using the API.
+a Zentral server, or a Santa [File Access Authorization](https://northpole.dev/configuration/faa/)
+policy plist, and imports it into a Workshop instance using the API.
 
 # Table of Contents
 
@@ -52,4 +53,23 @@ For Zentral imports, set ZENTRAL_API_KEY env var with your Zentral API token
 
   Example Usage:
 	./santa-rule-importer global.toml nps.workshop.cloud
+	./santa-rule-importer faa_policy.plist nps.workshop.cloud
 ```
+
+## File Access Authorization (FAA) Import
+
+The tool supports importing Santa [File Access Authorization](https://northpole.dev/configuration/faa/)
+rules from:
+
+- **Standalone `.plist` files** containing an FAA policy directly
+- **`.mobileconfig` files** that embed a `FileAccessPolicy` dictionary (FAA rules are imported alongside any StaticRules)
+
+The FAA policy's `WatchItems` are converted to Workshop file access rules. Key mappings:
+
+| Santa Config | Workshop API |
+|---|---|
+| `AuditOnly` (default: true) | `BlockViolations` (inverted) |
+| `AllowReadAccess` (default: true) | `AllowReadAccess` |
+| `Paths` with `IsPrefix=false` | `PathLiterals` |
+| `Paths` with `IsPrefix=true` | `PathPrefixes` |
+| `PlatformBinary=true` + `SigningID` | `ProcessSigningIds` as `platform:<SigningID>` |
