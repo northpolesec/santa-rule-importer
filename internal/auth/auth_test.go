@@ -30,7 +30,7 @@ func setupTokenFile(t *testing.T) string {
 func TestAPIKeyOrToken_EnvVar(t *testing.T) {
 	t.Setenv("WORKSHOP_API_KEY", "test-api-key")
 
-	creds, err := APIKeyOrToken("example.com", false)
+	creds, err := APIKeyOrToken(context.Background(), "example.com", true)
 	must.NoError(t, err)
 
 	meta, err := creds.GetRequestMetadata(context.Background())
@@ -41,27 +41,15 @@ func TestAPIKeyOrToken_EnvVar(t *testing.T) {
 
 func TestAPIKeyOrToken_NoCredsReturnsError(t *testing.T) {
 	t.Setenv("WORKSHOP_API_KEY", "")
-	path := setupTokenFile(t)
+	setupTokenFile(t)
 
-	// No token file exists, and the config endpoint will fail.
-	// But createConfig is called first, so we need a server.
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("fake-client-id"))
-	}))
-	defer server.Close()
-
-	// We can't easily override the endpoint URL, but with no token file
-	// and no env var, after createConfig fails we get an error.
-	// Since we can't reach localhost:8080 or https://example.com, test
-	// that we get a useful error.
-	_ = path
-	_, err := APIKeyOrToken("example.com", false)
+	// No token file and unreachable endpoint: createConfig will fail.
+	_, err := APIKeyOrToken(context.Background(), "example.com", false)
 	must.Error(t, err)
 }
 
 func TestAPIKeyAuthorizer_GetRequestMetadata(t *testing.T) {
-	a := apiKeyAuthorizer("my-key")
+	a := apiKeyAuthorizer{key: "my-key"}
 
 	meta, err := a.GetRequestMetadata(context.Background())
 	must.NoError(t, err)
@@ -69,16 +57,19 @@ func TestAPIKeyAuthorizer_GetRequestMetadata(t *testing.T) {
 }
 
 func TestAPIKeyAuthorizer_RequireTransportSecurity(t *testing.T) {
-	a := apiKeyAuthorizer("my-key")
-	test.Eq(t, false, a.RequireTransportSecurity())
+	secure := apiKeyAuthorizer{key: "my-key", insecure: false}
+	test.Eq(t, true, secure.RequireTransportSecurity())
+
+	insecure := apiKeyAuthorizer{key: "my-key", insecure: true}
+	test.Eq(t, false, insecure.RequireTransportSecurity())
 }
 
 func TestOAuthRPCCreds_RequireTransportSecurity(t *testing.T) {
 	secure := oauthRPCCreds{insecure: false}
 	test.Eq(t, true, secure.RequireTransportSecurity())
 
-	insecure := oauthRPCCreds{insecure: true}
-	test.Eq(t, false, insecure.RequireTransportSecurity())
+	insecureCreds := oauthRPCCreds{insecure: true}
+	test.Eq(t, false, insecureCreds.RequireTransportSecurity())
 }
 
 func TestWriteAndReadTokenFile(t *testing.T) {
@@ -99,6 +90,20 @@ func TestWriteAndReadTokenFile(t *testing.T) {
 	test.Eq(t, "access-123", got.AccessToken)
 	test.Eq(t, "refresh-456", got.RefreshToken)
 	test.Eq(t, "Bearer", got.TokenType)
+}
+
+func TestWriteTokenFile_CreatesParentDir(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "nested", "subdir", "token.json")
+	tokenFilePathOverride = path
+	t.Cleanup(func() { tokenFilePathOverride = "" })
+
+	token := &oauth2.Token{AccessToken: "abc"}
+	must.NoError(t, writeTokenToFile(token))
+
+	got := apiTokenFromFile()
+	must.NotNil(t, got)
+	test.Eq(t, "abc", got.AccessToken)
 }
 
 func TestApiTokenFromFile_NoFile(t *testing.T) {
@@ -195,19 +200,7 @@ func TestAddTokenExpiry_InvalidJWT(t *testing.T) {
 	test.Eq(t, true, token.Expiry.IsZero())
 }
 
-func TestCreateConfig_Localhost(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		test.Eq(t, "/.well-known/workos-client-id", r.URL.Path)
-		w.Write([]byte("test-client-id"))
-	}))
-	defer server.Close()
-
-	// createConfig hardcodes localhost:8080, so we can't easily test
-	// the full flow without that port. Instead test the non-localhost path
-	// by using a test server with a known URL.
-}
-
-func TestCreateConfig_HTTPServer(t *testing.T) {
+func TestCreateConfig_Success(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		test.Eq(t, "/.well-known/workos-client-id", r.URL.Path)
 		w.WriteHeader(http.StatusOK)
@@ -215,9 +208,58 @@ func TestCreateConfig_HTTPServer(t *testing.T) {
 	}))
 	defer server.Close()
 
-	// createConfig builds the URL from the endpoint, so we can't use
-	// the test server directly. Test the error case instead.
-	_, _, err := createConfig("unreachable.invalid.example")
+	// Use the test server's host:port as the endpoint with insecure=true (http).
+	// Strip the "http://" prefix since createConfig builds the URL itself.
+	endpoint := server.Listener.Addr().String()
+	cfg, err := createConfig(context.Background(), endpoint, true)
+	must.NoError(t, err)
+	test.Eq(t, "my-client-id", cfg.ClientID)
+}
+
+func TestCreateConfig_Non200Status(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	endpoint := server.Listener.Addr().String()
+	_, err := createConfig(context.Background(), endpoint, true)
+	must.Error(t, err)
+	must.StrContains(t, err.Error(), "status 404")
+}
+
+func TestCreateConfig_Unreachable(t *testing.T) {
+	_, err := createConfig(context.Background(), "unreachable.invalid.example", false)
 	must.Error(t, err)
 	must.StrContains(t, err.Error(), "failed to get client ID from endpoint")
+}
+
+func TestCreateConfig_ContextTimeout(t *testing.T) {
+	// Server that never responds.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done()
+	}))
+	defer server.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
+	defer cancel()
+
+	endpoint := server.Listener.Addr().String()
+	_, err := createConfig(ctx, endpoint, true)
+	must.Error(t, err)
+}
+
+func TestCreateConfig_InsecureUsesHTTP(t *testing.T) {
+	var receivedScheme string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// httptest.NewServer is HTTP, so if we got here with insecure=true it worked.
+		receivedScheme = "http"
+		w.Write([]byte("client-id"))
+	}))
+	defer server.Close()
+
+	endpoint := server.Listener.Addr().String()
+	_, err := createConfig(context.Background(), endpoint, true)
+	must.NoError(t, err)
+	test.Eq(t, "http", receivedScheme)
 }

@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/pkg/browser"
@@ -38,13 +39,13 @@ func tokenFilePath() (string, error) {
 }
 
 // GetAndStoreToken retrieves a device access token and stores it locally.
-func GetAndStoreToken(ctx context.Context, serverURL string) error {
-	cfg, _, err := createConfig(serverURL)
+func GetAndStoreToken(ctx context.Context, serverURL string, useInsecure bool) error {
+	cfg, err := createConfig(ctx, serverURL, useInsecure)
 	if err != nil {
 		return err
 	}
 
-	deviceAuthResp, err := cfg.DeviceAuth(context.Background())
+	deviceAuthResp, err := cfg.DeviceAuth(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to request device authorization: %v", err)
 	}
@@ -81,12 +82,12 @@ func GetAndStoreToken(ctx context.Context, serverURL string) error {
 //
 // If no valid credentials are found, an error is returned advising the user to
 // run the binary with the -login flag.
-func APIKeyOrToken(serverURL string, useInsecure bool) (credentials.PerRPCCredentials, error) {
+func APIKeyOrToken(ctx context.Context, serverURL string, useInsecure bool) (credentials.PerRPCCredentials, error) {
 	if e := os.Getenv("WORKSHOP_API_KEY"); e != "" {
-		return apiKeyAuthorizer(e), nil
+		return apiKeyAuthorizer{key: e, insecure: useInsecure}, nil
 	}
 
-	cfg, _, err := createConfig(serverURL)
+	cfg, err := createConfig(ctx, serverURL, useInsecure)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +95,7 @@ func APIKeyOrToken(serverURL string, useInsecure bool) (credentials.PerRPCCreden
 	token := apiTokenFromFile()
 	if token != nil {
 		return oauthRPCCreds{
-			ts:        cfg.TokenSource(context.Background(), token),
+			ts:        cfg.TokenSource(ctx, token),
 			insecure:  useInsecure,
 			serverURL: serverURL,
 		}, nil
@@ -105,29 +106,34 @@ func APIKeyOrToken(serverURL string, useInsecure bool) (credentials.PerRPCCreden
 	return nil, fmt.Errorf("Not logged in. Run the following to login:\n\n\t%s -login %s", os.Args[0], serverURL)
 }
 
-func createConfig(endpoint string) (*oauth2.Config, bool, error) {
-	insecure := false
-	url := ""
-	if endpoint == "localhost:8080" {
-		insecure = true
-		url = "http://localhost:8080/.well-known/workos-client-id"
-	} else {
-		url = fmt.Sprintf("https://%s/.well-known/workos-client-id", endpoint)
+func createConfig(ctx context.Context, endpoint string, insecure bool) (*oauth2.Config, error) {
+	scheme := "https"
+	if insecure {
+		scheme = "http"
+	}
+	url := fmt.Sprintf("%s://%s/.well-known/workos-client-id", scheme, endpoint)
+
+	reqCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+
+	req, err := http.NewRequestWithContext(reqCtx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create request for client ID: %v", err)
 	}
 
-	resp, err := http.Get(url)
+	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, insecure, fmt.Errorf("failed to get client ID from endpoint: %v", err)
+		return nil, fmt.Errorf("failed to get client ID from endpoint: %v", err)
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		return nil, insecure, fmt.Errorf("failed to get client ID from endpoint: status %d", resp.StatusCode)
+		return nil, fmt.Errorf("failed to get client ID from endpoint: status %d", resp.StatusCode)
 	}
 
 	clientID, err := io.ReadAll(resp.Body)
 	if err != nil {
-		return nil, insecure, fmt.Errorf("failed to read response body: %v", err)
+		return nil, fmt.Errorf("failed to read response body: %v", err)
 	}
 
 	return &oauth2.Config{
@@ -136,7 +142,7 @@ func createConfig(endpoint string) (*oauth2.Config, bool, error) {
 			DeviceAuthURL: "https://api.workos.com/user_management/authorize/device",
 			TokenURL:      "https://api.workos.com/user_management/authenticate",
 		},
-	}, insecure, nil
+	}, nil
 }
 
 func apiTokenFromFile() *oauth2.Token {
@@ -168,6 +174,10 @@ func writeTokenToFile(token *oauth2.Token) error {
 		return err
 	}
 
+	if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+		return fmt.Errorf("failed to create token directory: %w", err)
+	}
+
 	b, err := json.Marshal(token)
 	if err != nil {
 		return err
@@ -185,13 +195,16 @@ func deleteTokenFromFile() error {
 }
 
 // apiKeyAuthorizer is a PerRPCCredentials implementation that uses a static API key.
-type apiKeyAuthorizer string
+type apiKeyAuthorizer struct {
+	key      string
+	insecure bool
+}
 
 func (k apiKeyAuthorizer) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
-	return map[string]string{"Authorization": string(k)}, nil
+	return map[string]string{"Authorization": k.key}, nil
 }
 func (k apiKeyAuthorizer) RequireTransportSecurity() bool {
-	return false
+	return !k.insecure
 }
 
 // oauthRPCCreds is a PerRPCCredentials implementation that uses an OAuth TokenSource.
@@ -216,7 +229,10 @@ func (o oauthRPCCreds) GetRequestMetadata(ctx context.Context, uri ...string) (m
 	}
 
 	if !o.insecure {
-		ri, _ := credentials.RequestInfoFromContext(ctx)
+		ri, ok := credentials.RequestInfoFromContext(ctx)
+		if !ok {
+			return nil, fmt.Errorf("unable to get request info from context")
+		}
 		if err = credentials.CheckSecurityLevel(ri.AuthInfo, credentials.PrivacyAndIntegrity); err != nil {
 			return nil, fmt.Errorf("unable to transfer TokenSource PerRPCCredentials: %v", err)
 		}

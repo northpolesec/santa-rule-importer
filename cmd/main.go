@@ -55,7 +55,7 @@ func main() {
 	flag.Parse()
 
 	if *loginServer != "" {
-		if err := auth.GetAndStoreToken(context.Background(), *loginServer); err != nil {
+		if err := auth.GetAndStoreToken(context.Background(), *loginServer, *useInsecure); err != nil {
 			log.Fatal(err.Error())
 		}
 		return
@@ -121,7 +121,7 @@ func main() {
 		}
 	}
 
-	rpcCreds, err := auth.APIKeyOrToken(server, *useInsecure)
+	rpcCreds, err := auth.APIKeyOrToken(context.Background(), server, *useInsecure)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
