@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/northpolesec/santa-rule-importer/internal/auth"
 	"github.com/northpolesec/santa-rule-importer/internal/faarules"
 	"github.com/northpolesec/santa-rule-importer/internal/morozconfig"
 	"github.com/northpolesec/santa-rule-importer/internal/rudolph"
@@ -31,7 +32,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintf(os.Stderr, "santa-rule-importer - tool to import rules from Moroz, Rudolph, Zentral, StaticRules, and FAA policies to Workshop\n")
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintf(os.Stderr, "This tool expects the Workshop API Key to be in the WORKSHOP_API_KEY env var\n")
+	fmt.Fprintf(os.Stderr, "Auth: set WORKSHOP_API_KEY env var, or run '%s -login <server>' to authenticate via SSO\n", os.Args[0])
 	fmt.Fprintf(os.Stderr, "For Zentral imports, set ZENTRAL_API_KEY env var with your Zentral API token\n")
 	fmt.Fprintln(os.Stderr)
 	flag.PrintDefaults()
@@ -49,11 +50,19 @@ func main() {
 	zentTargetType := flag.String("zentral-target-type", "", "Filter Zentral rules by target type (BINARY, CERTIFICATE, etc.)")
 	zentTargetIdentifier := flag.String("zentral-target-identifier", "", "Filter Zentral rules by target identifier")
 	zentConfigID := flag.Int("zentral-config-id", 0, "Filter Zentral rules by configuration ID")
+	loginServer := flag.String("login", "", "Login to the specified Workshop server and store the token")
 	faaOnly := flag.Bool("faa-only", false, "Import only file access rules from a mobileconfig (skip static rules)")
 	staticRulesOnly := flag.Bool("static-rules-only", false, "Import only static rules from a mobileconfig (skip file access rules)")
 
 	flag.Usage = usage
 	flag.Parse()
+
+	if *loginServer != "" {
+		if err := auth.GetAndStoreToken(context.Background(), *loginServer, *useInsecure); err != nil {
+			log.Fatal(err.Error())
+		}
+		return
+	}
 
 	if *faaOnly && *staticRulesOnly {
 		println("Cannot use both --faa-only and --static-rules-only.")
@@ -61,12 +70,6 @@ func main() {
 	}
 
 	args := flag.Args()
-
-	apiKey := os.Getenv("WORKSHOP_API_KEY")
-	if apiKey == "" {
-		println("Please set WORKSHOP_API_KEY environment variable with your API key.")
-		os.Exit(1)
-	}
 
 	var (
 		rules      []*apipb.Rule
@@ -138,8 +141,13 @@ func main() {
 		}
 	}
 
+	rpcCreds, err := auth.APIKeyOrToken(context.Background(), server, *useInsecure)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
+
 	opts := []grpc.DialOption{
-		grpc.WithPerRPCCredentials(apiKeyAuthorizer(apiKey)),
+		grpc.WithPerRPCCredentials(rpcCreds),
 	}
 
 	if *useInsecure {
@@ -195,15 +203,4 @@ func main() {
 
 		fmt.Printf("%d/%d file access rules added successfully!\n", faaSuccesses, len(faaRules))
 	}
-}
-
-// apiKeyAuthorizer is a custom authorizer that adds the API key to the request
-// metadata.
-type apiKeyAuthorizer string
-
-func (k apiKeyAuthorizer) GetRequestMetadata(ctx context.Context, uri ...string) (map[string]string, error) {
-	return map[string]string{"Authorization": string(k)}, nil
-}
-func (k apiKeyAuthorizer) RequireTransportSecurity() bool {
-	return false
 }

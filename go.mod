@@ -1,12 +1,15 @@
 module github.com/northpolesec/santa-rule-importer
 
-go 1.24.0
+go 1.25.0
 
 require (
 	buf.build/gen/go/northpolesec/workshop-api/grpc/go v1.6.1-20260325193457-b769703ebb01.1
 	buf.build/gen/go/northpolesec/workshop-api/protocolbuffers/go v1.36.11-20260325193457-b769703ebb01.1
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/pelletier/go-toml/v2 v2.2.3
+	github.com/pkg/browser v0.0.0-20240102092130-5ac0b6a4141c
 	github.com/shoenig/test v1.12.1
+	golang.org/x/oauth2 v0.36.0
 	google.golang.org/grpc v1.78.0
 	howett.net/plist v1.0.1
 )
