@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/northpolesec/santa-rule-importer/internal/faarules"
 	"github.com/northpolesec/santa-rule-importer/internal/morozconfig"
 	"github.com/northpolesec/santa-rule-importer/internal/rudolph"
 	"github.com/northpolesec/santa-rule-importer/internal/santactl"
@@ -28,7 +29,7 @@ import (
 func usage() {
 	fmt.Fprintf(os.Stderr, "Usage: %s [OPTIONS] <path to input file> <server>\n", os.Args[0])
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintf(os.Stderr, "santa-rule-importer - tool to import rules from Moroz, Rudolph, Zentral, and StaticRules to Workshop\n")
+	fmt.Fprintf(os.Stderr, "santa-rule-importer - tool to import rules from Moroz, Rudolph, Zentral, StaticRules, and FAA policies to Workshop\n")
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintf(os.Stderr, "This tool expects the Workshop API Key to be in the WORKSHOP_API_KEY env var\n")
 	fmt.Fprintf(os.Stderr, "For Zentral imports, set ZENTRAL_API_KEY env var with your Zentral API token\n")
@@ -48,9 +49,16 @@ func main() {
 	zentTargetType := flag.String("zentral-target-type", "", "Filter Zentral rules by target type (BINARY, CERTIFICATE, etc.)")
 	zentTargetIdentifier := flag.String("zentral-target-identifier", "", "Filter Zentral rules by target identifier")
 	zentConfigID := flag.Int("zentral-config-id", 0, "Filter Zentral rules by configuration ID")
+	faaOnly := flag.Bool("faa-only", false, "Import only file access rules from a mobileconfig (skip static rules)")
+	staticRulesOnly := flag.Bool("static-rules-only", false, "Import only static rules from a mobileconfig (skip file access rules)")
 
 	flag.Usage = usage
 	flag.Parse()
+
+	if *faaOnly && *staticRulesOnly {
+		println("Cannot use both --faa-only and --static-rules-only.")
+		os.Exit(1)
+	}
 
 	args := flag.Args()
 
@@ -62,6 +70,7 @@ func main() {
 
 	var (
 		rules      []*apipb.Rule
+		faaRules   []*apipb.FileAccessRule
 		ruleSrcErr error
 		server     string
 	)
@@ -103,9 +112,20 @@ func main() {
 		} else if strings.HasSuffix(filename, ".json") {
 			rules, ruleSrcErr = santactl.ParseRulesFromFile(filename)
 		} else if strings.HasSuffix(filename, ".mobileconfig") {
-			rules, ruleSrcErr = staticrules.ParseRulesFromFile(filename)
+			if !*faaOnly {
+				rules, ruleSrcErr = staticrules.ParseRulesFromFile(filename)
+			}
+			if !*staticRulesOnly && (ruleSrcErr == nil) {
+				var faaErr error
+				faaRules, faaErr = faarules.ParseRulesFromMobileConfig(filename)
+				if faaErr != nil {
+					ruleSrcErr = faaErr
+				}
+			}
+		} else if strings.HasSuffix(filename, ".plist") {
+			faaRules, ruleSrcErr = faarules.ParseRulesFromFile(filename)
 		} else {
-			println("Unsupported file format. Please provide a .toml, .csv, .json, or .mobileconfig file.")
+			println("Unsupported file format. Please provide a .toml, .csv, .json, .mobileconfig, or .plist file.")
 			os.Exit(1)
 		}
 	}
@@ -153,7 +173,28 @@ func main() {
 		}
 	}
 
-	fmt.Printf("%d/%d rules added successfully!\n", successes, len(rules))
+	if len(rules) > 0 {
+		fmt.Printf("%d/%d rules added successfully!\n", successes, len(rules))
+	}
+
+	if len(faaRules) > 0 {
+		faaReq := &apipb.CreateFileAccessRuleRequest{}
+		faaSuccesses := len(faaRules)
+
+		for i, rule := range faaRules {
+			// TODO: Support setting the tag
+			rule.Tag = "global"
+			faaReq.Rule = rule
+			_, err := client.CreateFileAccessRule(context.Background(), faaReq)
+			if err != nil {
+				log.Printf("Failed to add file access rule %d: %s %v\n", i, rule.GetName(), err)
+				faaSuccesses--
+				continue
+			}
+		}
+
+		fmt.Printf("%d/%d file access rules added successfully!\n", faaSuccesses, len(faaRules))
+	}
 }
 
 // apiKeyAuthorizer is a custom authorizer that adds the API key to the request

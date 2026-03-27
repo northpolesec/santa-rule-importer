@@ -4,7 +4,8 @@ This project reads all rules out of: a
 [Moroz](https://github.com/groob/moroz) TOML config, a
 [Rudolph](https://github.com/airbnb/rudolph/tree/master) [CSV rule
 export](https://github.com/airbnb/rudolph/blob/master/docs/rules.md#importing-or-exporting-rules),
-or a Zentral server, and imports it into a Workshop instance using the API.
+a Zentral server, or a Santa [File Access Authorization](https://northpole.dev/configuration/faa/)
+policy plist, and imports it into a Workshop instance using the API.
 
 # Table of Contents
 
@@ -30,15 +31,19 @@ prompt$ make build # build the binary
 
 ```
 $  ./santa-rule-importer --help
-Usage: ./santa-rule-importer [OPTIONS] <path to config.toml|path to config.csv> <server>
+Usage: ./santa-rule-importer [OPTIONS] <path to input file> <server>
 
-santa-rule-importer - tool to import rules from Moroz, Rudolph, and Zentral to Workshop
+santa-rule-importer - tool to import rules from Moroz, Rudolph, Zentral, StaticRules, and FAA policies to Workshop
 
 This tool expects the Workshop API Key to be in the WORKSHOP_API_KEY env var
 For Zentral imports, set ZENTRAL_API_KEY env var with your Zentral API token
 
+  -faa-only
+    	Import only file access rules from a mobileconfig (skip static rules)
   -insecure
     	Use insecure connection
+  -static-rules-only
+    	Import only static rules from a mobileconfig (skip file access rules)
   -use-custom-msg-as-comment
     	Use custom message as comment (moroz only)
   -zentral-config-id int
@@ -52,4 +57,23 @@ For Zentral imports, set ZENTRAL_API_KEY env var with your Zentral API token
 
   Example Usage:
 	./santa-rule-importer global.toml nps.workshop.cloud
+	./santa-rule-importer --zentral-url zentral.example.com nps.workshop.cloud
 ```
+
+## File Access Authorization (FAA) Import
+
+The tool supports importing Santa [File Access Authorization](https://northpole.dev/configuration/faa/)
+rules from:
+
+- **Standalone `.plist` files** containing an FAA policy directly
+- **`.mobileconfig` files** that embed a `FileAccessPolicy` dictionary (FAA rules are imported alongside any StaticRules)
+
+The FAA policy's `WatchItems` are converted to Workshop file access rules. Key mappings:
+
+| Santa Config | Workshop API |
+|---|---|
+| `AuditOnly` (default: true) | `BlockViolations` (inverted) |
+| `AllowReadAccess` (default: true) | `AllowReadAccess` |
+| `Paths` with `IsPrefix=false` | `PathLiterals` |
+| `Paths` with `IsPrefix=true` | `PathPrefixes` |
+| `PlatformBinary=true` + `SigningID` | `ProcessSigningIds` as `platform:<SigningID>` |
