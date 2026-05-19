@@ -13,8 +13,14 @@ func GetPolicyType(policy string) apipb.Policy {
 	switch policy {
 	case "ALLOWLIST", "ALLOW":
 		return apipb.Policy_ALLOWLIST
+	case "ALLOWLIST_COMPILER", "COMPILER":
+		return apipb.Policy_ALLOWLIST_COMPILER
 	case "BLOCK", "BLOCKLIST":
 		return apipb.Policy_BLOCKLIST
+	case "SILENT_BLOCK", "SILENT_BLOCKLIST":
+		return apipb.Policy_SILENT_BLOCKLIST
+	case "CEL":
+		return apipb.Policy_CEL
 	default:
 		log.Fatalf("Unknown policy type: %s", policy)
 		return apipb.Policy_POLICY_UNKNOWN
